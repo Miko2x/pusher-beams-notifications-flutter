@@ -38,7 +38,13 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
 
     @nonobjc public override func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
         print("application.didReceiveRemoteNotification: \(userInfo)")
-        beamsClient?.handleNotification(userInfo: userInfo)
+        let remoteNotificationType = beamsClient?.handleNotification(userInfo: userInfo)
+        if remoteNotificationType == .ShouldIgnore {
+            completionHandler(.noData)
+            return
+        }
+
+        completionHandler(.newData)
     }
 
     public override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]) -> Bool {
@@ -146,6 +152,12 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
     
     public override func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        let remoteNotificationType = beamsClient?.handleNotification(userInfo: notification.request.content.userInfo)
+        if remoteNotificationType == .ShouldIgnore {
+            completionHandler([])
+            return
+        }
+
         if (messageDidReceiveInTheForegroundCallback != nil && SwiftPusherBeamsPlugin.callbackHandler != nil) {
             let pusherMessage: [String : Any] = [
                 "title": notification.request.content.title,
@@ -157,11 +169,17 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
                 print("SwiftPusherBeamsPlugin: message received: \(pusherMessage)")
             })
         }
+
+        if #available(iOS 14.0, *) {
+            completionHandler([.list, .banner, .sound, .badge])
+        } else {
+            completionHandler([.alert, .sound, .badge])
+        }
     }
 
     public override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         // Handle the user interaction with the notification
-        // Not Implemented yet
+        completionHandler()
     }
     
 }
