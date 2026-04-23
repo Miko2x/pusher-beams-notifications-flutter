@@ -14,6 +14,18 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     var deviceToken : Data? = nil
     var data: [String: NSObject]?
 
+    private func getBeamsClient(_ methodName: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> PushNotifications? {
+        guard let beamsClient = beamsClient else {
+            error.pointee = FlutterError(
+                code: "beams_not_started",
+                message: "Pusher Beams must be started before calling \(methodName).",
+                details: nil
+            )
+            return nil
+        }
+
+        return beamsClient
+    }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let messenger : FlutterBinaryMessenger = registrar.messenger()
@@ -78,11 +90,13 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
 
     public func addDeviceInterestInterest(_ interest: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        try? beamsClient!.addDeviceInterest(interest: interest)
+        guard let beamsClient = getBeamsClient("addDeviceInterest", error: error) else { return }
+        try? beamsClient.addDeviceInterest(interest: interest)
     }
 
     public func removeDeviceInterestInterest(_ interest: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        try? beamsClient!.removeDeviceInterest(interest: interest)
+        guard let beamsClient = getBeamsClient("removeDeviceInterest", error: error) else { return }
+        try? beamsClient.removeDeviceInterest(interest: interest)
     }
     
     public func getInitialMessage(completion: @escaping ([String : NSObject]?, FlutterError?) -> Void) {
@@ -90,15 +104,18 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
 
     public func getDeviceInterestsWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> [String]? {
-        return beamsClient!.getDeviceInterests()
+        guard let beamsClient = getBeamsClient("getDeviceInterests", error: error) else { return nil }
+        return beamsClient.getDeviceInterests()
     }
 
     public func setDeviceInterestsInterests(_ interests: [String], error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        try? beamsClient!.setDeviceInterests(interests: interests)
+        guard let beamsClient = getBeamsClient("setDeviceInterests", error: error) else { return }
+        try? beamsClient.setDeviceInterests(interests: interests)
     }
 
     public func clearDeviceInterestsWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        try? beamsClient!.clearDeviceInterests()
+        guard let beamsClient = getBeamsClient("clearDeviceInterests", error: error) else { return }
+        try? beamsClient.clearDeviceInterests()
     }
     
     public func interestsSetOnDeviceDidChange(interests: [String]) {
@@ -114,13 +131,23 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
 
     public func setUserIdUserId(_ userId: String, provider: BeamsAuthProvider, callbackId: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        let tokenProvider = BeamsTokenProvider(authURL: provider.authUrl!) { () -> AuthData in
+        guard let beamsClient = getBeamsClient("setUserId", error: error) else { return }
+        guard let authUrl = provider.authUrl else {
+            error.pointee = FlutterError(
+                code: "missing_auth_url",
+                message: "Pusher Beams authUrl is required before calling setUserId.",
+                details: nil
+            )
+            return
+        }
+
+        let tokenProvider = BeamsTokenProvider(authURL: authUrl) { () -> AuthData in
             let headers = provider.headers ?? [:]
             let queryParams: [String: String] = provider.queryParams ?? [:]
             return AuthData(headers: headers, queryParams: queryParams)
         }
         
-        beamsClient!.setUserId(userId, tokenProvider: tokenProvider, completion: { error in
+        beamsClient.setUserId(userId, tokenProvider: tokenProvider, completion: { error in
             guard error == nil else {
                 SwiftPusherBeamsPlugin.callbackHandler?.handleCallbackCallbackId(callbackId, callbackName: "setUserId", args: [error.debugDescription], completion: {_ in
                   print("SwiftPusherBeamsPlugin: callback \(callbackId) handled with error")
@@ -135,13 +162,20 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
 
     public func clearAllStateWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        beamsClient!.clearAllState {
+        guard let beamsClient = getBeamsClient("clearAllState", error: error) else { return }
+        beamsClient.clearAllState {
             print("SwiftPusherBeamsPlugin: state cleared")
         }
     }
 
     public func stopWithError(_ error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
-        beamsClient!.stop {
+        guard let beamsClient = beamsClient else {
+            started = false
+            print("SwiftPusherBeamsPlugin: stop skipped because beamsClient is nil")
+            return
+        }
+
+        beamsClient.stop {
             print("SwiftPusherBeamsPlugin: stopped")
         }
         started = false
