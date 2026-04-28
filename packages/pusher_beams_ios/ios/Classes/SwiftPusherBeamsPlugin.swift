@@ -14,6 +14,59 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     var deviceToken : Data? = nil
     var data: [String: NSObject]?
 
+    private func launchOptionValue(
+        _ launchOptions: [AnyHashable: Any],
+        for key: UIApplication.LaunchOptionsKey
+    ) -> Any? {
+        for (optionKey, value) in launchOptions {
+            let baseKey = optionKey.base
+
+            if let launchKey = baseKey as? UIApplication.LaunchOptionsKey, launchKey == key {
+                return value
+            }
+
+            if let stringKey = baseKey as? String, stringKey == key.rawValue {
+                return value
+            }
+
+            if let stringKey = baseKey as? NSString, stringKey as String == key.rawValue {
+                return value
+            }
+        }
+
+        return nil
+    }
+
+    private func dictionaryValue(_ dictionary: [AnyHashable: Any], for key: String) -> Any? {
+        for (dictionaryKey, value) in dictionary {
+            let baseKey = dictionaryKey.base
+
+            if let stringKey = baseKey as? String, stringKey == key {
+                return value
+            }
+
+            if let stringKey = baseKey as? NSString, stringKey as String == key {
+                return value
+            }
+        }
+
+        return nil
+    }
+
+    private func initialMessageData(from remoteNotification: Any) -> [String: NSObject]? {
+        if let remoteNotification = remoteNotification as? [String: Any],
+           let extraData = remoteNotification["data"] as? [String: Any] {
+            return extraData["info"] as? [String: NSObject]
+        }
+
+        if let remoteNotification = remoteNotification as? [AnyHashable: Any],
+           let extraData = dictionaryValue(remoteNotification, for: "data") as? [AnyHashable: Any] {
+            return dictionaryValue(extraData, for: "info") as? [String: NSObject]
+        }
+
+        return nil
+    }
+
     private func getBeamsClient(_ methodName: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> PushNotifications? {
         guard let beamsClient = beamsClient else {
             error.pointee = FlutterError(
@@ -62,10 +115,8 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     public override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]) -> Bool {
         print("SwiftPusherBeamsPlugin: didFinishLaunchingWithOptions with options: \(String(describing: launchOptions))")
         
-        if launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] != nil {
-            let remoteNotif = launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] as! [String: Any]
-            let extraData = remoteNotif["data"] as? [String: Any]
-            data = extraData?["info"] as? [String: NSObject]
+        if let remoteNotification = launchOptionValue(launchOptions, for: .remoteNotification) {
+            data = initialMessageData(from: remoteNotification)
             print("SwiftPusherBeamsPlugin: got initial data: \(String(describing: data))")
         } else {
             data = nil
