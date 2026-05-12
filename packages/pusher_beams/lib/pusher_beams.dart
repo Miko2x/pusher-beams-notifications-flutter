@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:pusher_beams_platform_interface/method_channel_pusher_beams.dart';
@@ -326,7 +327,14 @@ class PusherBeams extends PusherBeamsPlatform with CallbackHandlerApi {
   /// **You're not supposed to use this**
   @override
   void handleCallback(String callbackId, String callbackName, List args) {
-    final callback = _callbacks[callbackId]!;
+    final callback = _callbacks[callbackId];
+    
+    // Guard against null callbacks to prevent crashes
+    // This can happen when the app restarts or callbacks are cleaned up
+    if (callback == null) {
+      developer.log('⚠️ PusherBeams: Callback not found for id: $callbackId, name: $callbackName');
+      return;
+    }
 
     switch (callbackName) {
       case "onInterestChanges":
