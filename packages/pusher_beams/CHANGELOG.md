@@ -1,3 +1,7 @@
+## 1.1.2
+- Fix null check operator crash in `handleCallback` method when callback ID is not found in the map
+- Add null safety guard to prevent app crashes when receiving callbacks after app restart or callback cleanup
+
 ## 1.1.1
 - Fix `PusherBeamsPlugin.kt` `onNewIntent` null safety
 
