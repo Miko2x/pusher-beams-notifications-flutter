@@ -32,6 +32,8 @@ abstract class PusherBeamsApi {
 
   void onMessageReceivedInTheForeground(String callbackId);
 
+  void onNotificationOpened(String callbackId);
+
   void stop();
 }
 

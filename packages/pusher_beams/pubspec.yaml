@@ -12,7 +12,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  pusher_beams_platform_interface: ^1.1.1
+  pusher_beams_platform_interface:
+    git:
+      url: https://github.com/Miko2x/pusher-beams-notifications-flutter
+      path: packages/pusher_beams_platform_interface
+      ref: master
   pusher_beams_web:
     git:
       url: https://github.com/Miko2x/pusher-beams-notifications-flutter

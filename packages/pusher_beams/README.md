@@ -53,6 +53,7 @@ This is the comparison table of functions implemented within this plugin accordi
 | [getDeviceInterests](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/getDeviceInterests.html)   | ✅   | ✅       | ✅   |
 | [onInterestChanges](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/onInterestChanges.html)    | ✅   | ✅       | ⬜️   |
 | [onMessageReceivedInTheForeground](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/onMessageReceivedInTheForeground.html)    | ✅   | ✅       | ⬜️   |
+| `onNotificationOpened`    | ✅   | ✅       | ⬜️   |
 | [getInitialMessage](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/getInitialMessage.html)    | ✅   | ✅       | ⬜️   |
 | [removeDeviceInterest](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/removeDeviceInterest.html) | ✅   | ✅       | ✅   |
 | [setDeviceInterests](https://pub.dev/documentation/pusher_beams/latest/pusher_beams/PusherBeams/setDeviceInterests.html)   | ✅   | ✅       | ✅   |
@@ -177,6 +178,27 @@ void main() async {
 ```
 
 Overall, that's all! ✨ Now you can use the methods described in the [API Reference.](#api-reference)
+
+### Handling notification taps
+
+Register `onNotificationOpened` once during application startup to receive a
+callback when a Pusher Beams notification opens the app from either the
+background or terminated state:
+
+```dart
+await PusherBeams.instance.onNotificationOpened((data) {
+  // Navigate using your application's router.
+  print('Notification opened: $data');
+});
+```
+
+The callback receives the notification's `info` map. An empty map is emitted
+when `info` is absent, so the tap can still be handled. Events that occur before
+the Dart listener is registered are queued by the native implementation.
+
+`getInitialMessage` remains available for backwards compatibility. Avoid
+performing the same navigation from both APIs because `onNotificationOpened`
+also covers the terminated state.
 
 ## API Reference
 

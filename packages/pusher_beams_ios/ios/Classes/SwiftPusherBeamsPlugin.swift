@@ -8,6 +8,8 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     
     var interestsDidChangeCallback : String? = nil
     var messageDidReceiveInTheForegroundCallback : String? = nil
+    var notificationOpenedCallback : String? = nil
+    var pendingNotificationOpenedData: [String: NSObject]? = nil
     
     var beamsClient : PushNotifications?
     var started : Bool = false
@@ -67,6 +69,43 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
         return nil
     }
 
+    private func notificationOpenedData(from userInfo: [AnyHashable: Any]) -> [String: NSObject] {
+        return initialMessageData(from: userInfo) ?? [:]
+    }
+
+    private func isPusherNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
+        if dictionaryValue(userInfo, for: "pusher") != nil {
+            return true
+        }
+
+        if let extraData = dictionaryValue(userInfo, for: "data") as? [AnyHashable: Any] {
+            return dictionaryValue(extraData, for: "info") != nil
+        }
+
+        return dictionaryValue(userInfo, for: "info") != nil
+    }
+
+    private func emitOrQueueNotificationOpened(_ notificationData: [String: NSObject]) {
+        guard let callbackId = notificationOpenedCallback,
+              let callbackHandler = SwiftPusherBeamsPlugin.callbackHandler else {
+            pendingNotificationOpenedData = notificationData
+            return
+        }
+
+        callbackHandler.handleCallbackCallbackId(
+            callbackId,
+            callbackName: "onNotificationOpened",
+            args: [notificationData],
+            completion: { error in
+                if let error = error {
+                    print("SwiftPusherBeamsPlugin: notification-open callback failed: \(error)")
+                } else {
+                    print("SwiftPusherBeamsPlugin: notification-open callback delivered: \(notificationData)")
+                }
+            }
+        )
+    }
+
     private func getBeamsClient(_ methodName: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) -> PushNotifications? {
         guard let beamsClient = beamsClient else {
             error.pointee = FlutterError(
@@ -115,9 +154,12 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     public override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]) -> Bool {
         print("SwiftPusherBeamsPlugin: didFinishLaunchingWithOptions with options: \(String(describing: launchOptions))")
         
-        if let remoteNotification = launchOptionValue(launchOptions, for: .remoteNotification) {
-            data = initialMessageData(from: remoteNotification)
+        if let remoteNotification = launchOptionValue(launchOptions, for: .remoteNotification),
+           let userInfo = remoteNotification as? [AnyHashable: Any],
+           isPusherNotification(userInfo) {
+            data = initialMessageData(from: remoteNotification) ?? [:]
             print("SwiftPusherBeamsPlugin: got initial data: \(String(describing: data))")
+            emitOrQueueNotificationOpened(data!)
         } else {
             data = nil
         }
@@ -235,6 +277,15 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     public func onMessageReceived(inTheForegroundCallbackId callbackId: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
         messageDidReceiveInTheForegroundCallback = callbackId
     }
+
+    public func onNotificationOpenedCallbackId(_ callbackId: String, error: AutoreleasingUnsafeMutablePointer<FlutterError?>) {
+        notificationOpenedCallback = callbackId
+
+        if let pendingData = pendingNotificationOpenedData {
+            pendingNotificationOpenedData = nil
+            emitOrQueueNotificationOpened(pendingData)
+        }
+    }
     
     public override func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let remoteNotificationType = beamsClient?.handleNotification(userInfo: notification.request.content.userInfo)
@@ -263,7 +314,16 @@ public class SwiftPusherBeamsPlugin: FlutterPluginAppLifeCycleDelegate, FlutterP
     }
 
     public override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        // Handle the user interaction with the notification
+        let userInfo = response.notification.request.content.userInfo
+        guard isPusherNotification(userInfo) else {
+            completionHandler()
+            return
+        }
+
+        let remoteNotificationType = beamsClient?.handleNotification(userInfo: userInfo)
+        if remoteNotificationType != .ShouldIgnore {
+            emitOrQueueNotificationOpened(notificationOpenedData(from: userInfo))
+        }
         completionHandler()
     }
     
