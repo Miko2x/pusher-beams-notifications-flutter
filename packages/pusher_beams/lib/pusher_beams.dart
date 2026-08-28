@@ -320,6 +320,27 @@ class PusherBeams extends PusherBeamsPlatform with CallbackHandlerApi {
         .onMessageReceivedInTheForeground(kIsWeb ? callback : callbackId);
   }
 
+  /// Registers a listener that is called when the user opens the app by
+  /// tapping a Pusher Beams notification.
+  ///
+  /// The callback covers both background and terminated application states.
+  /// Notification-open events received before this listener is registered are
+  /// queued by the native implementation and delivered after registration.
+  ///
+  /// The callback receives the map stored in the notification's `info` key.
+  /// If `info` is absent, an empty map is delivered so the tap is still
+  /// observable.
+  ///
+  /// **This is not implemented on web.**
+  @override
+  Future<void> onNotificationOpened(OnNotificationOpened callback) async {
+    if (kIsWeb) return;
+
+    final callbackId = _uuid.v4();
+    _callbacks[callbackId] = callback;
+    await _pusherBeamsApi.onNotificationOpened(callbackId);
+  }
+
   /// Handler which receives callbacks from the native platforms.
   /// This currently supports [onInterestChanges] and [setUserId] callbacks
   /// but by default it just call the [Function] set.
@@ -344,6 +365,9 @@ class PusherBeams extends PusherBeamsPlatform with CallbackHandlerApi {
         callback(args[0] as String?);
         return;
       case "onMessageReceivedInTheForeground":
+        callback((args[0] as Map<Object?, Object?>));
+        return;
+      case "onNotificationOpened":
         callback((args[0] as Map<Object?, Object?>));
         return;
       default:

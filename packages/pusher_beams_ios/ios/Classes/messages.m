@@ -323,6 +323,26 @@ void PusherBeamsApiSetup(id<FlutterBinaryMessenger> binaryMessenger, NSObject<Pu
   {
     FlutterBasicMessageChannel *channel =
       [FlutterBasicMessageChannel
+        messageChannelWithName:@"dev.flutter.pigeon.PusherBeamsApi.onNotificationOpened"
+        binaryMessenger:binaryMessenger
+        codec:PusherBeamsApiGetCodec()];
+    if (api) {
+      NSCAssert([api respondsToSelector:@selector(onNotificationOpenedCallbackId:error:)], @"PusherBeamsApi api (%@) doesn't respond to @selector(onNotificationOpenedCallbackId:error:)", api);
+      [channel setMessageHandler:^(id _Nullable message, FlutterReply callback) {
+        NSArray *args = message;
+        NSString *arg_callbackId = args[0];
+        FlutterError *error;
+        [api onNotificationOpenedCallbackId:arg_callbackId error:&error];
+        callback(wrapResult(nil, error));
+      }];
+    }
+    else {
+      [channel setMessageHandler:nil];
+    }
+  }
+  {
+    FlutterBasicMessageChannel *channel =
+      [FlutterBasicMessageChannel
         messageChannelWithName:@"dev.flutter.pigeon.PusherBeamsApi.stop"
         binaryMessenger:binaryMessenger
         codec:PusherBeamsApiGetCodec()];
