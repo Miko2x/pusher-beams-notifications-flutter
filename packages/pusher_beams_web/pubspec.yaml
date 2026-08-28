@@ -15,7 +15,7 @@ dependencies:
     sdk: flutter
   pusher_beams_platform_interface:
     git:
-      url: https://github.com/wgnalvian/pusher-beams-notifications-flutter
+      url: https://github.com/Miko2x/pusher-beams-notifications-flutter
       path: packages/pusher_beams_platform_interface
       ref: master
   js: ^0.6.3
