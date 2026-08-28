@@ -98,9 +98,7 @@ class PusherBeamsPlugin : FlutterPlugin, Messages.PusherBeamsApi, ActivityAware,
     private fun emitOrQueueNotificationOpened(notificationData: Map<String, Any?>) {
         val callbackId = notificationOpenedCallbackId
         if (callbackId == null) {
-            if (!pendingNotificationOpenedData.contains(notificationData)) {
-                pendingNotificationOpenedData.add(notificationData)
-            }
+            pendingNotificationOpenedData.add(notificationData)
             return
         }
 

@@ -70,6 +70,15 @@ class _MyHomePageState extends State<MyHomePage> {
           .onMessageReceivedInTheForeground(_onMessageReceivedInTheForeground);
 
       await PusherBeams.instance.onNotificationOpened(_onNotificationOpened);
+
+      await _checkForInitialMessage();
+    }
+  }
+
+  Future<void> _checkForInitialMessage() async {
+    final initialMessage = await PusherBeams.instance.getInitialMessage();
+    if (initialMessage != null) {
+      _showAlert('Initial Message Is:', initialMessage.toString());
     }
   }
 
